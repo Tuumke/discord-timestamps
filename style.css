@@ -1,0 +1,129 @@
+  :root {
+    color-scheme: light dark;
+    --bg: #f2f3f5;
+    --panel: #ffffff;
+    --panel-2: #ebedef;
+    --text: #2e3338;
+    --muted: #5c6370;
+    --border: #d4d7dc;
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --accent-text: #ffffff;
+    --mention-bg: rgba(88, 101, 242, 0.12);
+    --code-bg: #e3e5e8;
+    --ok: #248046;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1f22;
+      --panel: #2b2d31;
+      --panel-2: #313338;
+      --text: #dbdee1;
+      --muted: #949ba4;
+      --border: #3f4147;
+      --accent-hover: #6d78f5;
+      --mention-bg: rgba(88, 101, 242, 0.22);
+      --code-bg: #1e1f22;
+      --ok: #3ba55c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 "gg sans", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    padding: 32px 16px 48px;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    font: inherit;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+  button {
+    font: inherit;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    min-height: 34px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.primary:hover { background: var(--accent-hover); }
+  .spacer { flex: 1; }
+  .epoch { color: var(--muted); font-size: 0.85rem; }
+  .epoch code { color: var(--text); }
+
+  .formats { display: flex; flex-direction: column; gap: 8px; }
+  .fmt {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel-2);
+  }
+  .fmt .name { font-size: 0.8rem; color: var(--muted); }
+  .fmt .preview { grid-column: 1; }
+  .fmt .preview span {
+    background: var(--mention-bg);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .fmt code {
+    grid-column: 1;
+    font: 0.85rem/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    justify-self: start;
+    word-break: break-all;
+  }
+  .fmt button { grid-column: 2; grid-row: 1 / span 3; min-width: 74px; }
+  .fmt button.copied { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .fmt button.failed { background: #d83c3e; border-color: #d83c3e; color: #fff; }
+
+  .parse-row { display: flex; gap: 8px; }
+  .parse-row input { flex: 1; min-width: 0; }
+  .hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; min-height: 1.2em; }
+  .hint.err { color: #d83c3e; }
+  footer { color: var(--muted); font-size: 0.8rem; text-align: center; margin-top: 24px; }
+  footer a { color: var(--accent); }
+
+  @media (max-width: 480px) {
+    .fmt { grid-template-columns: 1fr; }
+    .fmt button { grid-column: 1; grid-row: auto; justify-self: start; }
+  }
