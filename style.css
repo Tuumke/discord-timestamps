@@ -10,7 +10,6 @@
   --accent: #4f5fe8;
   --accent-ink: #ffffff;
   --success: #1f8a56;
-  --warning: #9a6a00;
   --danger: #c8323f;
   --on-semantic: #ffffff;
   --mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Consolas, "SF Mono", monospace;
@@ -26,7 +25,6 @@
     --accent: #8193ff;
     --accent-ink: #0d1033;
     --success: #4cc38a;
-    --warning: #e8b44c;
     --danger: #f0616d;
     --on-semantic: #0b0c0f;
   }
@@ -87,11 +85,6 @@ input, select, button { font: inherit; color: inherit; }
   font-size: 13px;
 }
 .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.status[data-kind="warning"] {
-  color: var(--warning);
-  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
-  background: color-mix(in srgb, var(--warning) 10%, transparent);
-}
 .status[data-kind="danger"] {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 40%, transparent);

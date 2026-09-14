@@ -98,7 +98,6 @@
       r.button.disabled = !valid;
     }
     if (!valid) setStatus('danger', 'Enter a full date and time to get codes.');
-    else if (sec < Date.now() / 1000 - 60) setStatus('warning', 'This moment is in the past.');
     else setStatus(null);
   }
 
@@ -168,6 +167,6 @@
   setSec(inRange(fromHash) ? fromHash : Date.now() / 1000);
   delete app.dataset.loading;
 
-  // Keep the relative preview and past-warning current.
+  // Keep the relative preview current.
   setInterval(() => { if (state.valid) render(); }, 1000);
 })();

@@ -12,7 +12,7 @@ Live: https://tuumke.github.io/discord-timestamps/
 - Shareable link: the selected moment is kept in the URL hash (`#1700000000`)
 - Follows the OS light/dark setting, including native date/time pickers
 - Skeleton rows until the script has filled in the codes
-- Semantic colors: success (copied), warning (moment is in the past), danger (incomplete input, copy failed)
+- Semantic colors: success (copied), danger (incomplete input, copy failed)
 
 ## Security
 
