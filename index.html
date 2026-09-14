@@ -6,66 +6,47 @@
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f3f5">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1e1f22">
-<title>Discord Timestamp Generator</title>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f5f7">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16171b">
+<title>Discord Timestamps</title>
 <meta name="description" content="Generate Discord timestamp codes that show every reader the time in their own timezone.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏰</text></svg>">
 <link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
 </head>
 <body>
-<main>
-  <h1>⏰ Discord Timestamp Generator</h1>
-  <p class="lede">Pick a moment, copy a code, paste it in Discord. Everyone sees it in their own timezone and language.</p>
+<main class="app" id="app" data-loading>
+  <h1 class="brand">Discord timestamps</h1>
 
-  <section class="card" aria-labelledby="pick-h">
-    <h2 id="pick-h">Moment</h2>
-    <div class="grid">
-      <div>
-        <label for="date">Date</label>
-        <input type="date" id="date">
-      </div>
-      <div>
-        <label for="time">Time</label>
-        <input type="time" id="time" step="1">
-      </div>
-      <div>
-        <label for="tz">Timezone</label>
-        <select id="tz"></select>
-      </div>
+  <div class="picker">
+    <div class="field">
+      <label for="date">Date</label>
+      <input id="date" type="date" required>
     </div>
-    <div class="row" aria-label="Quick adjust">
-      <button class="primary" id="now" type="button">Now</button>
-      <button type="button" data-add="-86400">−1d</button>
-      <button type="button" data-add="-3600">−1h</button>
-      <button type="button" data-add="900">+15m</button>
-      <button type="button" data-add="3600">+1h</button>
-      <button type="button" data-add="86400">+1d</button>
-      <button type="button" data-add="604800">+1w</button>
-      <span class="spacer"></span>
-      <span class="epoch">Unix: <code id="epoch">–</code></span>
+    <div class="field">
+      <label for="time">Time</label>
+      <input id="time" type="time" required>
     </div>
-  </section>
-
-  <section class="card" aria-labelledby="fmt-h">
-    <h2 id="fmt-h">Formats</h2>
-    <div class="formats" id="formats"></div>
-  </section>
-
-  <section class="card" aria-labelledby="parse-h">
-    <h2 id="parse-h">Load existing</h2>
-    <div class="parse-row">
-      <input id="parse" placeholder="Paste a Unix timestamp or <t:1700000000:F> code" autocomplete="off" spellcheck="false">
-      <button type="button" id="parseBtn">Load</button>
+    <div class="field">
+      <label for="tz">Timezone</label>
+      <select id="tz"></select>
     </div>
-    <p class="hint" id="parseHint"></p>
-  </section>
+    <button class="btn-now" id="now" type="button">Now</button>
+  </div>
 
-  <footer>
-    Previews use your browser's locale. The link in the address bar keeps the selected moment, so you can share it.
-  </footer>
+  <p class="status" id="status" role="status" hidden></p>
+
+  <ul class="rows" id="rows" aria-label="Timestamp formats">
+    <li class="row"><span class="pv sk" data-preview="R"></span><code class="cd sk" data-code="R"></code><button class="copy sk" type="button" data-copy="R" aria-label="Copy relative time code" disabled>Copy</button></li>
+    <li class="row"><span class="pv sk" data-preview="t"></span><code class="cd sk" data-code="t"></code><button class="copy sk" type="button" data-copy="t" aria-label="Copy short time code" disabled>Copy</button></li>
+    <li class="row"><span class="pv sk" data-preview="T"></span><code class="cd sk" data-code="T"></code><button class="copy sk" type="button" data-copy="T" aria-label="Copy long time code" disabled>Copy</button></li>
+    <li class="row"><span class="pv sk" data-preview="d"></span><code class="cd sk" data-code="d"></code><button class="copy sk" type="button" data-copy="d" aria-label="Copy short date code" disabled>Copy</button></li>
+    <li class="row"><span class="pv sk" data-preview="D"></span><code class="cd sk" data-code="D"></code><button class="copy sk" type="button" data-copy="D" aria-label="Copy long date code" disabled>Copy</button></li>
+    <li class="row"><span class="pv sk" data-preview="f"></span><code class="cd sk" data-code="f"></code><button class="copy sk" type="button" data-copy="f" aria-label="Copy date and time code" disabled>Copy</button></li>
+    <li class="row"><span class="pv sk" data-preview="F"></span><code class="cd sk" data-code="F"></code><button class="copy sk" type="button" data-copy="F" aria-label="Copy weekday, date and time code" disabled>Copy</button></li>
+  </ul>
+
+  <noscript><p class="status" data-kind="danger">This page needs JavaScript to build timestamp codes.</p></noscript>
 </main>
-
-<script src="app.js" defer></script>
 </body>
 </html>

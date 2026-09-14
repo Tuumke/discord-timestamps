@@ -1,24 +1,38 @@
 (() => {
-  const FORMATS = [
-    { key: 't', name: 'Short time',          opts: { hour: 'numeric', minute: '2-digit' } },
-    { key: 'T', name: 'Long time',           opts: { hour: 'numeric', minute: '2-digit', second: '2-digit' } },
-    { key: 'd', name: 'Short date',          opts: { day: '2-digit', month: '2-digit', year: 'numeric' } },
-    { key: 'D', name: 'Long date',           opts: { day: 'numeric', month: 'long', year: 'numeric' } },
-    { key: 'f', name: 'Short date & time',   opts: { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' } },
-    { key: 'F', name: 'Long date & time',    opts: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' } },
-    { key: 'R', name: 'Relative',            opts: null },
-  ];
+  'use strict';
+
+  // Discord format letter -> Intl options for the preview (null = relative).
+  const FORMATS = {
+    R: null,
+    t: { hour: 'numeric', minute: '2-digit' },
+    T: { hour: 'numeric', minute: '2-digit', second: '2-digit' },
+    d: { day: '2-digit', month: '2-digit', year: 'numeric' },
+    D: { day: 'numeric', month: 'long', year: 'numeric' },
+    f: { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' },
+    F: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' },
+  };
+
+  // JS Date range is ±8.64e15 ms; anything outside breaks Intl formatting.
+  const MAX_SEC = 8.64e12;
+  const inRange = (sec) => Number.isFinite(sec) && Math.abs(sec) <= MAX_SEC;
 
   const $ = (id) => document.getElementById(id);
-  const dateEl = $('date'), timeEl = $('time'), tzEl = $('tz'), epochEl = $('epoch');
+  const app = $('app'), dateEl = $('date'), timeEl = $('time'), tzEl = $('tz'), statusEl = $('status');
+  const rows = [...document.querySelectorAll('#rows .row')].map((row) => ({
+    key: row.querySelector('[data-copy]').dataset.copy,
+    preview: row.querySelector('[data-preview]'),
+    code: row.querySelector('[data-code]'),
+    button: row.querySelector('[data-copy]'),
+  }));
   const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
 
-  let epoch = Math.floor(Date.now() / 1000); // seconds
+  const state = { sec: Math.floor(Date.now() / 1000), valid: true };
 
   // --- timezone helpers ---------------------------------------------------
   const partsCache = new Map();
-  function partsFormatter(tz) {
+  function wallParts(ms, tz) {
     if (!partsCache.has(tz)) {
       partsCache.set(tz, new Intl.DateTimeFormat('en-US', {
         timeZone: tz, hourCycle: 'h23',
@@ -26,21 +40,15 @@
         hour: '2-digit', minute: '2-digit', second: '2-digit',
       }));
     }
-    return partsCache.get(tz);
-  }
-
-  // Wall-clock fields of a UTC instant (ms) in the given timezone.
-  function wallParts(ms, tz) {
     const p = {};
-    for (const { type, value } of partsFormatter(tz).formatToParts(new Date(ms))) p[type] = +value;
+    for (const { type, value } of partsCache.get(tz).formatToParts(new Date(ms))) p[type] = +value;
     return p;
   }
 
   // Offset (ms) of tz from UTC at the given instant.
   function tzOffset(ms, tz) {
     const p = wallParts(ms, tz);
-    const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-    return asUtc - Math.floor(ms / 1000) * 1000;
+    return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
   }
 
   // Wall-clock time in tz -> UTC instant (ms). Handles DST transitions.
@@ -52,160 +60,114 @@
     return off1 === off2 ? t : guess - off2;
   }
 
-  const pad = (n, w = 2) => String(n).padStart(w, '0');
-
-  // Build elements without innerHTML so no string is ever parsed as markup.
-  function el(tag, { dataset, ...props } = {}) {
-    const node = Object.assign(document.createElement(tag), props);
-    if (dataset) Object.assign(node.dataset, dataset);
-    return node;
-  }
-
-  // JS Date range is ±8.64e15 ms; anything outside breaks Intl formatting.
-  const MAX_SEC = 8.64e12;
-  const inRange = (sec) => Number.isFinite(sec) && Math.abs(sec) <= MAX_SEC;
-
-  // --- timezone list ------------------------------------------------------
   function fillTimezones() {
     let zones = [];
     try { zones = Intl.supportedValuesOf('timeZone'); } catch { /* older browsers */ }
-    if (!zones.includes('UTC')) zones.unshift('UTC');
-    if (!zones.includes(localTz)) zones.unshift(localTz);
-    const frag = document.createDocumentFragment();
+    zones = [...new Set([localTz, 'UTC', ...zones])];
     for (const z of zones) {
-      const o = document.createElement('option');
-      o.value = z;
-      o.textContent = z === localTz ? `${z.replace(/_/g, ' ')} (your timezone)` : z.replace(/_/g, ' ');
-      frag.appendChild(o);
+      const label = z.replace(/_/g, ' ');
+      tzEl.append(new Option(z === localTz ? `${label} (you)` : label, z));
     }
-    tzEl.appendChild(frag);
     tzEl.value = localTz;
   }
 
   // --- rendering ----------------------------------------------------------
-  function buildFormatRows() {
-    const wrap = $('formats');
-    for (const f of FORMATS) {
-      const row = el('div', { className: 'fmt' });
-      const preview = el('div', { className: 'preview' });
-      preview.append(el('span', { dataset: { preview: f.key } }));
-      row.append(
-        el('div', { className: 'name', textContent: f.name }),
-        preview,
-        el('code', { dataset: { code: f.key } }),
-        el('button', { type: 'button', textContent: 'Copy', dataset: { copy: f.key }, ariaLabel: `Copy ${f.name} code` }),
-      );
-      wrap.append(row);
-    }
-    wrap.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-copy]');
-      if (btn) copy(`<t:${epoch}:${btn.dataset.copy}>`, btn);
-    });
-  }
-
   function relative(sec) {
     const diff = sec - Math.floor(Date.now() / 1000);
     const abs = Math.abs(diff);
-    const units = [
-      ['year', 31536000], ['month', 2592000], ['day', 86400],
-      ['hour', 3600], ['minute', 60], ['second', 1],
-    ];
+    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]];
     for (const [unit, size] of units) {
       if (abs >= size || unit === 'second') return rtf.format(Math.round(diff / size), unit);
     }
   }
 
-  function renderPreviews() {
-    const date = new Date(epoch * 1000);
-    for (const f of FORMATS) {
-      const text = f.opts ? date.toLocaleString(undefined, f.opts) : relative(epoch);
-      document.querySelector(`[data-preview="${f.key}"]`).textContent = text;
-      document.querySelector(`[data-code="${f.key}"]`).textContent = `<t:${epoch}:${f.key}>`;
+  function setStatus(kind, text) {
+    if (statusEl.dataset.kind === kind && statusEl.textContent === text) return; // avoid re-announcing
+    statusEl.hidden = !kind;
+    statusEl.dataset.kind = kind || '';
+    statusEl.textContent = text || '';
+  }
+
+  function render() {
+    const { sec, valid } = state;
+    const date = new Date(sec * 1000);
+    for (const r of rows) {
+      const opts = FORMATS[r.key];
+      r.preview.textContent = valid ? (opts ? date.toLocaleString(undefined, opts) : relative(sec)) : '—';
+      r.code.textContent = valid ? `<t:${sec}:${r.key}>` : '—';
+      r.button.disabled = !valid;
     }
-    epochEl.textContent = epoch;
+    if (!valid) setStatus('danger', 'Enter a full date and time to get codes.');
+    else if (sec < Date.now() / 1000 - 60) setStatus('warning', 'This moment is in the past.');
+    else setStatus(null);
   }
 
   function syncInputs() {
-    const p = wallParts(epoch * 1000, tzEl.value);
+    const p = wallParts(state.sec * 1000, tzEl.value);
     dateEl.value = `${pad(p.year, 4)}-${pad(p.month)}-${pad(p.day)}`;
-    timeEl.value = `${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}`;
+    timeEl.value = `${pad(p.hour)}:${pad(p.minute)}`;
   }
 
-  function setEpoch(sec, { fromInputs = false } = {}) {
+  function setSec(sec) {
     if (!inRange(sec)) return;
-    epoch = Math.trunc(sec);
-    if (!fromInputs) syncInputs();
-    renderPreviews();
-    history.replaceState(null, '', `#${epoch}`);
+    state.sec = Math.trunc(sec);
+    state.valid = true;
+    syncInputs();
+    render();
+    history.replaceState(null, '', `#${state.sec}`);
   }
 
   function readInputs() {
-    const dm = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(dateEl.value);
+    const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateEl.value);
     const tm = /^(\d{2}):(\d{2})(?::(\d{2}))?/.exec(timeEl.value);
-    if (!dm || !tm) return;
-    const ms = zonedToMs(+dm[1], +dm[2], +dm[3], +tm[1], +tm[2], +(tm[3] || 0), tzEl.value);
-    setEpoch(ms / 1000, { fromInputs: true });
+    state.valid = !!(dm && tm);
+    if (state.valid) {
+      state.sec = Math.floor(zonedToMs(+dm[1], +dm[2], +dm[3], +tm[1], +tm[2], +(tm[3] || 0), tzEl.value) / 1000);
+      history.replaceState(null, '', `#${state.sec}`);
+    }
+    render();
   }
 
   // --- copy ---------------------------------------------------------------
-  async function copy(text, btn) {
+  async function copy(r) {
+    if (!state.valid) return;
     let ok = true;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(`<t:${state.sec}:${r.key}>`);
     } catch {
-      ok = false; // e.g. permission denied; code stays visible to copy by hand
+      ok = false; // e.g. permission denied; the code stays visible to copy by hand
     }
-    btn.textContent = ok ? 'Copied!' : 'Failed';
-    btn.classList.toggle('copied', ok);
-    btn.classList.toggle('failed', !ok);
+    const btn = r.button;
+    btn.dataset.state = ok ? 'ok' : 'err';
+    btn.textContent = ok ? 'Copied' : 'Failed';
     clearTimeout(btn._t);
-    btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied', 'failed'); }, 1500);
+    btn._t = setTimeout(() => { delete btn.dataset.state; btn.textContent = 'Copy'; }, 1600);
   }
 
-  // --- parsing ------------------------------------------------------------
-  function parseInput(raw) {
-    const s = raw.trim();
-    const code = /^<t:(-?\d+)(?::[tTdDfFR])?>$/.exec(s);
-    if (code) return +code[1];
-    if (/^-?\d+$/.test(s)) {
-      const n = +s;
-      return Math.abs(n) >= 1e11 ? Math.floor(n / 1000) : n; // accept milliseconds too
-    }
-    return NaN;
-  }
-
-  function loadParsed() {
-    const hint = $('parseHint');
-    const sec = parseInput($('parse').value);
-    if (inRange(sec)) {
-      setEpoch(sec);
-      hint.textContent = `Loaded ${new Date(sec * 1000).toLocaleString()}.`;
-      hint.classList.remove('err');
-    } else {
-      hint.textContent = 'Could not read that. Use digits like 1700000000 or a code like <t:1700000000:F>.';
-      hint.classList.add('err');
+  // --- link hash ----------------------------------------------------------
+  function secFromHash() {
+    try {
+      const s = decodeURIComponent(location.hash.slice(1)).trim();
+      const m = /^<t:(-?\d+)(?::[tTdDfFR])?>$/.exec(s) || /^(-?\d+)$/.exec(s);
+      return m ? +m[1] : NaN;
+    } catch {
+      return NaN; // malformed % escape
     }
   }
 
   // --- wiring -------------------------------------------------------------
   fillTimezones();
-  buildFormatRows();
-
+  for (const r of rows) r.button.addEventListener('click', () => copy(r));
   dateEl.addEventListener('input', readInputs);
   timeEl.addEventListener('input', readInputs);
-  tzEl.addEventListener('change', syncInputs); // same instant, shown in the new zone
-  $('now').addEventListener('click', () => setEpoch(Date.now() / 1000));
-  document.querySelectorAll('[data-add]').forEach((b) =>
-    b.addEventListener('click', () => setEpoch(epoch + +b.dataset.add)));
-  $('parseBtn').addEventListener('click', loadParsed);
-  $('parse').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadParsed(); });
+  tzEl.addEventListener('change', () => { if (state.valid) syncInputs(); }); // same instant, new zone
+  $('now').addEventListener('click', () => setSec(Date.now() / 1000));
+  window.addEventListener('hashchange', () => { const s = secFromHash(); if (inRange(s) && s !== state.sec) setSec(s); });
 
-  let fromHash = NaN;
-  try { fromHash = parseInput(decodeURIComponent(location.hash.slice(1))); } catch { /* malformed % escape */ }
-  setEpoch(inRange(fromHash) ? fromHash : Date.now() / 1000);
+  const fromHash = secFromHash();
+  setSec(inRange(fromHash) ? fromHash : Date.now() / 1000);
+  delete app.dataset.loading;
 
-  // Keep the relative preview ticking.
-  setInterval(() => {
-    document.querySelector('[data-preview="R"]').textContent = relative(epoch);
-  }, 1000);
+  // Keep the relative preview and past-warning current.
+  setInterval(() => { if (state.valid) render(); }, 1000);
 })();
