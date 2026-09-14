@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discord Timestamp Generator</title>
+<meta name="description" content="Generate Discord timestamp codes that show every reader the time in their own timezone.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏰</text></svg>">
+<style>
+  :root {
+    --bg: #f2f3f5;
+    --panel: #ffffff;
+    --panel-2: #ebedef;
+    --text: #2e3338;
+    --muted: #5c6370;
+    --border: #d4d7dc;
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --accent-text: #ffffff;
+    --mention-bg: rgba(88, 101, 242, 0.12);
+    --code-bg: #e3e5e8;
+    --ok: #248046;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1f22;
+      --panel: #2b2d31;
+      --panel-2: #313338;
+      --text: #dbdee1;
+      --muted: #949ba4;
+      --border: #3f4147;
+      --accent-hover: #6d78f5;
+      --mention-bg: rgba(88, 101, 242, 0.22);
+      --code-bg: #1e1f22;
+      --ok: #3ba55c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 "gg sans", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    padding: 32px 16px 48px;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    font: inherit;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+  button {
+    font: inherit;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    min-height: 34px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.primary:hover { background: var(--accent-hover); }
+  .spacer { flex: 1; }
+  .epoch { color: var(--muted); font-size: 0.85rem; }
+  .epoch code { color: var(--text); }
+
+  .formats { display: flex; flex-direction: column; gap: 8px; }
+  .fmt {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel-2);
+  }
+  .fmt .name { font-size: 0.8rem; color: var(--muted); }
+  .fmt .preview { grid-column: 1; }
+  .fmt .preview span {
+    background: var(--mention-bg);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .fmt code {
+    grid-column: 1;
+    font: 0.85rem/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    justify-self: start;
+    word-break: break-all;
+  }
+  .fmt button { grid-column: 2; grid-row: 1 / span 3; min-width: 74px; }
+  .fmt button.copied { background: var(--ok); border-color: var(--ok); color: #fff; }
+
+  .parse-row { display: flex; gap: 8px; }
+  .parse-row input { flex: 1; min-width: 0; }
+  .hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; min-height: 1.2em; }
+  .hint.err { color: #d83c3e; }
+  footer { color: var(--muted); font-size: 0.8rem; text-align: center; margin-top: 24px; }
+  footer a { color: var(--accent); }
+
+  @media (max-width: 480px) {
+    .fmt { grid-template-columns: 1fr; }
+    .fmt button { grid-column: 1; grid-row: auto; justify-self: start; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>⏰ Discord Timestamp Generator</h1>
+  <p class="lede">Pick a moment, copy a code, paste it in Discord. Everyone sees it in their own timezone and language.</p>
+
+  <section class="card" aria-labelledby="pick-h">
+    <h2 id="pick-h">Moment</h2>
+    <div class="grid">
+      <div>
+        <label for="date">Date</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label for="time">Time</label>
+        <input type="time" id="time" step="1">
+      </div>
+      <div>
+        <label for="tz">Timezone</label>
+        <select id="tz"></select>
+      </div>
+    </div>
+    <div class="row" aria-label="Quick adjust">
+      <button class="primary" id="now" type="button">Now</button>
+      <button type="button" data-add="-86400">−1d</button>
+      <button type="button" data-add="-3600">−1h</button>
+      <button type="button" data-add="900">+15m</button>
+      <button type="button" data-add="3600">+1h</button>
+      <button type="button" data-add="86400">+1d</button>
+      <button type="button" data-add="604800">+1w</button>
+      <span class="spacer"></span>
+      <span class="epoch">Unix: <code id="epoch">–</code></span>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="fmt-h">
+    <h2 id="fmt-h">Formats</h2>
+    <div class="formats" id="formats"></div>
+  </section>
+
+  <section class="card" aria-labelledby="parse-h">
+    <h2 id="parse-h">Load existing</h2>
+    <div class="parse-row">
+      <input id="parse" placeholder="Paste a Unix timestamp or <t:1700000000:F> code" autocomplete="off" spellcheck="false">
+      <button type="button" id="parseBtn">Load</button>
+    </div>
+    <p class="hint" id="parseHint"></p>
+  </section>
+
+  <footer>
+    Previews use your browser's locale. The link in the address bar keeps the selected moment, so you can share it.
+  </footer>
+</main>
+
+<script>
+(() => {
+  const FORMATS = [
+    { key: 't', name: 'Short time',          opts: { hour: 'numeric', minute: '2-digit' } },
+    { key: 'T', name: 'Long time',           opts: { hour: 'numeric', minute: '2-digit', second: '2-digit' } },
+    { key: 'd', name: 'Short date',          opts: { day: '2-digit', month: '2-digit', year: 'numeric' } },
+    { key: 'D', name: 'Long date',           opts: { day: 'numeric', month: 'long', year: 'numeric' } },
+    { key: 'f', name: 'Short date & time',   opts: { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' } },
+    { key: 'F', name: 'Long date & time',    opts: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' } },
+    { key: 'R', name: 'Relative',            opts: null },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const dateEl = $('date'), timeEl = $('time'), tzEl = $('tz'), epochEl = $('epoch');
+  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+
+  let epoch = Math.floor(Date.now() / 1000); // seconds
+
+  // --- timezone helpers ---------------------------------------------------
+  const partsCache = new Map();
+  function partsFormatter(tz) {
+    if (!partsCache.has(tz)) {
+      partsCache.set(tz, new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hourCycle: 'h23',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      }));
+    }
+    return partsCache.get(tz);
+  }
+
+  // Wall-clock fields of a UTC instant (ms) in the given timezone.
+  function wallParts(ms, tz) {
+    const p = {};
+    for (const { type, value } of partsFormatter(tz).formatToParts(new Date(ms))) p[type] = +value;
+    return p;
+  }
+
+  // Offset (ms) of tz from UTC at the given instant.
+  function tzOffset(ms, tz) {
+    const p = wallParts(ms, tz);
+    const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+    return asUtc - Math.floor(ms / 1000) * 1000;
+  }
+
+  // Wall-clock time in tz -> UTC instant (ms). Handles DST transitions.
+  function zonedToMs(y, mo, d, h, mi, s, tz) {
+    const guess = Date.UTC(y, mo - 1, d, h, mi, s);
+    const off1 = tzOffset(guess - tzOffset(guess, tz), tz);
+    const t = guess - off1;
+    const off2 = tzOffset(t, tz);
+    return off1 === off2 ? t : guess - off2;
+  }
+
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+
+  // --- timezone list ------------------------------------------------------
+  function fillTimezones() {
+    let zones = [];
+    try { zones = Intl.supportedValuesOf('timeZone'); } catch { /* older browsers */ }
+    if (!zones.includes('UTC')) zones.unshift('UTC');
+    if (!zones.includes(localTz)) zones.unshift(localTz);
+    const frag = document.createDocumentFragment();
+    for (const z of zones) {
+      const o = document.createElement('option');
+      o.value = z;
+      o.textContent = z === localTz ? `${z.replace(/_/g, ' ')} (your timezone)` : z.replace(/_/g, ' ');
+      frag.appendChild(o);
+    }
+    tzEl.appendChild(frag);
+    tzEl.value = localTz;
+  }
+
+  // --- rendering ----------------------------------------------------------
+  function buildFormatRows() {
+    const wrap = $('formats');
+    for (const f of FORMATS) {
+      const row = document.createElement('div');
+      row.className = 'fmt';
+      row.innerHTML = `
+        <div class="name">${f.name}</div>
+        <div class="preview"><span data-preview="${f.key}"></span></div>
+        <code data-code="${f.key}"></code>
+        <button type="button" data-copy="${f.key}" aria-label="Copy ${f.name} code">Copy</button>`;
+      wrap.appendChild(row);
+    }
+    wrap.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-copy]');
+      if (btn) copy(`<t:${epoch}:${btn.dataset.copy}>`, btn);
+    });
+  }
+
+  function relative(sec) {
+    const diff = sec - Math.floor(Date.now() / 1000);
+    const abs = Math.abs(diff);
+    const units = [
+      ['year', 31536000], ['month', 2592000], ['day', 86400],
+      ['hour', 3600], ['minute', 60], ['second', 1],
+    ];
+    for (const [unit, size] of units) {
+      if (abs >= size || unit === 'second') return rtf.format(Math.round(diff / size), unit);
+    }
+  }
+
+  function renderPreviews() {
+    const date = new Date(epoch * 1000);
+    for (const f of FORMATS) {
+      const text = f.opts ? date.toLocaleString(undefined, f.opts) : relative(epoch);
+      document.querySelector(`[data-preview="${f.key}"]`).textContent = text;
+      document.querySelector(`[data-code="${f.key}"]`).textContent = `<t:${epoch}:${f.key}>`;
+    }
+    epochEl.textContent = epoch;
+  }
+
+  function syncInputs() {
+    const p = wallParts(epoch * 1000, tzEl.value);
+    dateEl.value = `${pad(p.year, 4)}-${pad(p.month)}-${pad(p.day)}`;
+    timeEl.value = `${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}`;
+  }
+
+  function setEpoch(sec, { fromInputs = false } = {}) {
+    if (!Number.isFinite(sec)) return;
+    epoch = Math.trunc(sec);
+    if (!fromInputs) syncInputs();
+    renderPreviews();
+    history.replaceState(null, '', `#${epoch}`);
+  }
+
+  function readInputs() {
+    const dm = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(dateEl.value);
+    const tm = /^(\d{2}):(\d{2})(?::(\d{2}))?/.exec(timeEl.value);
+    if (!dm || !tm) return;
+    const ms = zonedToMs(+dm[1], +dm[2], +dm[3], +tm[1], +tm[2], +(tm[3] || 0), tzEl.value);
+    setEpoch(ms / 1000, { fromInputs: true });
+  }
+
+  // --- copy ---------------------------------------------------------------
+  async function copy(text, btn) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  }
+
+  // --- parsing ------------------------------------------------------------
+  function parseInput(raw) {
+    const s = raw.trim();
+    const code = /^<t:(-?\d+)(?::[tTdDfFR])?>$/.exec(s);
+    if (code) return +code[1];
+    if (/^-?\d+$/.test(s)) {
+      const n = +s;
+      return Math.abs(n) >= 1e11 ? Math.floor(n / 1000) : n; // accept milliseconds too
+    }
+    return NaN;
+  }
+
+  function loadParsed() {
+    const hint = $('parseHint');
+    const sec = parseInput($('parse').value);
+    if (Number.isFinite(sec) && Math.abs(sec) <= 8.64e12) {
+      setEpoch(sec);
+      hint.textContent = `Loaded ${new Date(sec * 1000).toLocaleString()}.`;
+      hint.classList.remove('err');
+    } else {
+      hint.textContent = 'Could not read that. Use digits like 1700000000 or a code like <t:1700000000:F>.';
+      hint.classList.add('err');
+    }
+  }
+
+  // --- wiring -------------------------------------------------------------
+  fillTimezones();
+  buildFormatRows();
+
+  dateEl.addEventListener('input', readInputs);
+  timeEl.addEventListener('input', readInputs);
+  tzEl.addEventListener('change', syncInputs); // same instant, shown in the new zone
+  $('now').addEventListener('click', () => setEpoch(Date.now() / 1000));
+  document.querySelectorAll('[data-add]').forEach((b) =>
+    b.addEventListener('click', () => setEpoch(epoch + +b.dataset.add)));
+  $('parseBtn').addEventListener('click', loadParsed);
+  $('parse').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadParsed(); });
+
+  const fromHash = parseInput(decodeURIComponent(location.hash.slice(1)));
+  setEpoch(Number.isFinite(fromHash) ? fromHash : Date.now() / 1000);
+
+  // Keep the relative preview ticking.
+  setInterval(() => {
+    document.querySelector('[data-preview="R"]').textContent = relative(epoch);
+  }, 1000);
+})();
+</script>
+</body>
+</html>
